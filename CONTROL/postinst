@@ -1,0 +1,26 @@
+#!/bin/sh
+# Compile .py to .pyc up front (saves a few seconds on first plugin load).
+PYDIR=/usr/lib/enigma2/python/Plugins/Extensions/BouquetToM3U
+if [ -d "$PYDIR" ]; then
+    python3 -m compileall -q "$PYDIR" >/dev/null 2>&1 || true
+fi
+
+mkdir -p /var/www/m3u
+
+cat <<EOF
+
+------------------------------------------------------------
+Bouquet to M3U installed.
+
+Restart enigma2 to activate the plugin:
+    init 4 && sleep 3 && init 3
+or just reboot.
+
+After restart, configure it via:
+    Plugin Browser -> Bouquet to M3U
+or
+    Menu -> Extensions -> Bouquet to M3U
+------------------------------------------------------------
+EOF
+
+exit 0

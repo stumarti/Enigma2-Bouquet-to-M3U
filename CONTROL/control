@@ -1,0 +1,12 @@
+Package: enigma2-plugin-extensions-bouquettom3u
+Version: 1.1.0
+Architecture: all
+Maintainer: Stumarti
+Section: extra
+Priority: optional
+Description: Bouquet to M3U / XMLTV exporter for Enigma 2
+ Exports a chosen Enigma 2 bouquet as an M3U playlist and an XMLTV
+ EPG file, served over HTTP on the LAN. Useful for pointing third-
+ party IPTV players (TiviMate, IPTV Smarters, Jellyfin, etc.) at
+ the box's live tuners.
+Depends: enigma2, python3

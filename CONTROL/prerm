@@ -1,0 +1,4 @@
+#!/bin/sh
+# Nothing destructive — leave /var/www/m3u alone so any served URLs
+# remain functional until user removes them manually.
+exit 0
