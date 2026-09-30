@@ -65,7 +65,7 @@ When enigma2 is back up, you'll find the plugin under:
 
 ## Configuration
 
-Open the plugin and you'll see four options:
+Open the plugin and you'll see these options:
 
 | Setting | Default | Description |
 |---|---|---|
@@ -73,10 +73,12 @@ Open the plugin and you'll see four options:
 | Refresh interval | Every hour | How often to regenerate the M3U/EPG. Choose between 15 min and once a day, or "Manual only". |
 | HTTP server port | 8888 | Port the bundled web server binds to. Must be ≥1024 and not already in use. |
 | Picon directory | `/usr/share/enigma2/picon` | Where your channel logos live. Change this if you store picons on a USB stick or HDD. |
+| LAN access only | Yes | Only answer requests from the networks listed below (plus the box itself). Anyone else gets `403 Forbidden`. Set to No to allow any client. |
+| Allowed networks | `192.168.0.0/16, 10.0.0.0/8, 172.16.0.0/12` | Comma-separated list of subnets in CIDR notation, used when LAN access only is on. A bare address such as `192.168.1.50` allows a single device. |
 
 Buttons:
 
-- **Green** — Save (port changes restart the server live, no enigma2 restart needed).
+- **Green** — Save (port and access changes apply immediately, no enigma2 restart needed).
 - **Yellow** — Refresh now (shows a progress screen while it runs).
 - **Blue** — Show URLs (handy when setting up an IPTV app — read them off your TV instead of having to SSH in).
 - **Red** — Cancel.
@@ -110,7 +112,17 @@ Generated stream URLs target port 8001 (raw TS, no transcoding). Most IPTV playe
 
 ### LAN only
 
-The bundled HTTP server has **no authentication**. It's intended for LAN use behind your home router. Don't port-forward it to the internet without putting something in front of it (reverse proxy with auth, VPN, etc.).
+The bundled HTTP server has **no authentication**. By default it only answers clients on the private address ranges (`192.168.x.x`, `10.x.x.x`, `172.16–31.x.x`), so it keeps working across your whole home network but won't serve anyone else, even if a port gets forwarded by mistake.
+
+To lock it down further or open it to more networks, edit **Allowed networks**. You can list as many subnets as you like, e.g.:
+
+```
+192.168.1.0/24, 192.168.20.0/24, 100.64.0.0/10
+```
+
+That allows your main LAN, a separate IoT/TV VLAN and Tailscale devices. Only IPv4 is supported.
+
+Even with this on, don't port-forward the server to the internet. Put a VPN or an authenticating reverse proxy in front of it if you need remote access.
 
 ## Building from source
 

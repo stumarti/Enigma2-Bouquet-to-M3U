@@ -2,6 +2,8 @@
 
 ## 1.2.0
 
+- New "LAN access only" setting (on by default) with a configurable,
+  comma-separated list of allowed subnets. Other clients get 403.
 - Fix: the bundled HTTP server now answers on the advertised `/m3u/...`
   paths (`/m3u/channels.m3u`, `/m3u/epg.xml.gz`, `/m3u/picon/...`).
   Previously these returned 404 because files were served from `/`.

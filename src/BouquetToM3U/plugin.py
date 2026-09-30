@@ -22,13 +22,13 @@ from Screens.ChoiceBox import ChoiceBox
 from Components.ActionMap import ActionMap
 from Components.config import (
     config, ConfigSubsection, ConfigSelection, ConfigText, ConfigInteger,
-    getConfigListEntry,
+    ConfigYesNo, getConfigListEntry,
 )
 from Components.ConfigList import ConfigListScreen
 from Components.Sources.StaticText import StaticText
 
 from . import __version__, generator
-from .httpserver import FileServer
+from .httpserver import FileServer, DEFAULT_ALLOWED_NETWORKS, parse_networks
 
 
 # ---------------------------------------------------------------------------
@@ -54,6 +54,9 @@ config.plugins.BouquetToM3U.port = ConfigInteger(
     default=8888, limits=(1024, 65535))
 config.plugins.BouquetToM3U.picon_dir = ConfigText(
     default="/usr/share/enigma2/picon", fixed_size=False, visible_width=50)
+config.plugins.BouquetToM3U.lan_only = ConfigYesNo(default=True)
+config.plugins.BouquetToM3U.allowed_networks = ConfigText(
+    default=DEFAULT_ALLOWED_NETWORKS, fixed_size=False, visible_width=50)
 
 # Sensible defaults that are NOT user-facing (per the design choice).
 OUTPUT_DIR = "/var/www/m3u"
@@ -67,23 +70,39 @@ BOUQUETS_DIR = "/etc/enigma2"
 # Singletons (HTTP server + refresh timer)
 # ---------------------------------------------------------------------------
 
-_file_server = FileServer(OUTPUT_DIR, port=config.plugins.BouquetToM3U.port.value)
+def _allowed_networks():
+    """Allow-list for the HTTP server, or None when LAN-only is off."""
+    if not config.plugins.BouquetToM3U.lan_only.value:
+        return None
+    try:
+        return parse_networks(config.plugins.BouquetToM3U.allowed_networks.value)
+    except ValueError as e:
+        print("[BouquetToM3U] bad allowed network %s, using private ranges" % e)
+        return parse_networks(DEFAULT_ALLOWED_NETWORKS)
+
+
+_file_server = FileServer(OUTPUT_DIR,
+                          port=config.plugins.BouquetToM3U.port.value,
+                          allowed_networks=_allowed_networks())
 _refresh_timer = None
 _refresh_in_progress = False
 
 
 def _restart_server_if_port_changed():
-    """Recreate the FileServer if the configured port differs from the one
-    it's currently bound to. Called after saving the config screen."""
+    """Apply the current allow-list, and recreate the FileServer if the
+    configured port differs from the one it's bound to. Called after
+    saving the config screen."""
     global _file_server
     desired = config.plugins.BouquetToM3U.port.value
+    _file_server.set_allowed_networks(_allowed_networks())
     if _file_server.port == desired and _file_server.is_running():
         return
     try:
         _file_server.stop()
     except Exception:
         pass
-    _file_server = FileServer(OUTPUT_DIR, port=desired)
+    _file_server = FileServer(OUTPUT_DIR, port=desired,
+                              allowed_networks=_allowed_networks())
     try:
         _file_server.start()
         print("[BouquetToM3U] HTTP server restarted on port %d" % desired)
@@ -216,6 +235,10 @@ class BouquetToM3USetup(ConfigListScreen, Screen):
                                config.plugins.BouquetToM3U.port),
             getConfigListEntry(_("Picon directory"),
                                config.plugins.BouquetToM3U.picon_dir),
+            getConfigListEntry(_("LAN access only"),
+                               config.plugins.BouquetToM3U.lan_only),
+            getConfigListEntry(_("Allowed networks (comma separated)"),
+                               config.plugins.BouquetToM3U.allowed_networks),
         ]
         ConfigListScreen.__init__(self, config_list)
 
@@ -247,11 +270,22 @@ class BouquetToM3USetup(ConfigListScreen, Screen):
         self.close(False)
 
     def save(self):
+        try:
+            parse_networks(config.plugins.BouquetToM3U.allowed_networks.value)
+        except ValueError as e:
+            self.session.open(
+                MessageBox,
+                _("Invalid network: %s\n\nUse CIDR notation separated by "
+                  "commas, e.g.\n192.168.1.0/24, 10.8.0.0/24") % e,
+                MessageBox.TYPE_ERROR, timeout=10)
+            return
         config.plugins.BouquetToM3U.bouquet.value = self.bouquet_cfg.value
         config.plugins.BouquetToM3U.bouquet.save()
         config.plugins.BouquetToM3U.refresh_minutes.save()
         config.plugins.BouquetToM3U.port.save()
         config.plugins.BouquetToM3U.picon_dir.save()
+        config.plugins.BouquetToM3U.lan_only.save()
+        config.plugins.BouquetToM3U.allowed_networks.save()
         config.plugins.BouquetToM3U.save()
         _restart_server_if_port_changed()
         _schedule_next()
