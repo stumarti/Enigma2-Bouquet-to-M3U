@@ -4,6 +4,8 @@ An Enigma 2 plugin that exports a bouquet as an **M3U playlist** plus an **XMLTV
 
 Tested on Zgemma H7 running PurE2; should work on any modern Enigma 2 image (OpenPLi, OpenATV, OpenViX, OpenSPA, etc.) with OpenWebif and Python 3.
 
+**Requirements:** a Python 3 based image with OpenWebif installed (`enigma2-plugin-extensions-openwebif`). The plugin reads channel lists and EPG from OpenWebif's API, and opkg pulls it in automatically if it's missing.
+
 ## Features
 
 - One M3U URL on your LAN that any IPTV app can read.
@@ -17,23 +19,53 @@ Tested on Zgemma H7 running PurE2; should work on any modern Enigma 2 image (Ope
 
 ## Install
 
-Download the latest IPK from [releases](../../releases) (or build your own — see below), copy it to your box, and install with opkg:
+Every tagged release on the [Releases page](https://github.com/stumarti/Enigma2-Bouquet-to-M3U/releases) has a ready-built IPK, compiled by GitHub Actions. It's a pure-Python package (`Architecture: all`), so the same file works on every receiver.
+
+### Option 1: install straight from GitHub on the box
+
+SSH (or telnet) into your receiver and run:
 
 ```sh
-scp dist/enigma2-plugin-extensions-bouquettom3u_*.ipk root@<box-ip>:/tmp/
-ssh root@<box-ip>
-opkg install /tmp/enigma2-plugin-extensions-bouquettom3u_*.ipk
+cd /tmp
+wget -O bouquettom3u.ipk https://github.com/stumarti/Enigma2-Bouquet-to-M3U/releases/latest/download/enigma2-plugin-extensions-bouquettom3u.ipk
+opkg install bouquettom3u.ipk
 init 4 && sleep 3 && init 3   # restart enigma2 so the autostart hook fires
 ```
 
-After enigma2 is back up, the plugin lives under:
+That URL always points at the newest release. If your image's `wget` can't do HTTPS (you'll see an SSL error), use `curl -L -o bouquettom3u.ipk <url>` if you have curl, or use option 2.
+
+### Option 2: copy it over from your PC
+
+1. Download `enigma2-plugin-extensions-bouquettom3u_<version>_all.ipk` from the [latest release](https://github.com/stumarti/Enigma2-Bouquet-to-M3U/releases/latest).
+2. Copy it to the box and install it:
+
+   ```sh
+   scp enigma2-plugin-extensions-bouquettom3u_*_all.ipk root@<box-ip>:/tmp/
+   ssh root@<box-ip>
+   opkg install /tmp/enigma2-plugin-extensions-bouquettom3u_*_all.ipk
+   init 4 && sleep 3 && init 3
+   ```
+
+   No `scp`? Use FileZilla / WinSCP to drop the file in `/tmp`, then run the `opkg install` line from a telnet/SSH session. Some images can also install it from **Menu → Setup → Software management → Install local extension** after you put the file in `/tmp`.
+
+### Upgrading
+
+Install the newer IPK the same way. `opkg install` replaces the old version and keeps your settings. Restart enigma2 afterwards. The installed version appears in the plugin's title bar, or you can check it with:
+
+```sh
+opkg list-installed | grep bouquettom3u
+```
+
+### After installing
+
+When enigma2 is back up, you'll find the plugin under:
 
 - **Menu → Plugins → Bouquet to M3U**
 - **Extensions menu** (blue button on most images)
 
 ## Configuration
 
-Open the plugin and you'll see four options:
+Open the plugin and you'll see these options:
 
 | Setting | Default | Description |
 |---|---|---|
@@ -41,10 +73,12 @@ Open the plugin and you'll see four options:
 | Refresh interval | Every hour | How often to regenerate the M3U/EPG. Choose between 15 min and once a day, or "Manual only". |
 | HTTP server port | 8888 | Port the bundled web server binds to. Must be ≥1024 and not already in use. |
 | Picon directory | `/usr/share/enigma2/picon` | Where your channel logos live. Change this if you store picons on a USB stick or HDD. |
+| LAN access only | No | When set to Yes, only answer requests from the networks listed below (plus the box itself). Anyone else gets `403 Forbidden`. |
+| Allowed networks | `192.168.0.0/16, 10.0.0.0/8, 172.16.0.0/12` | Comma-separated list of subnets in CIDR notation, used when LAN access only is on. A bare address such as `192.168.1.50` allows a single device. |
 
 Buttons:
 
-- **Green** — Save (port changes restart the server live, no enigma2 restart needed).
+- **Green** — Save (port and access changes apply immediately, no enigma2 restart needed).
 - **Yellow** — Refresh now (shows a progress screen while it runs).
 - **Blue** — Show URLs (handy when setting up an IPTV app — read them off your TV instead of having to SSH in).
 - **Red** — Cancel.
@@ -78,21 +112,71 @@ Generated stream URLs target port 8001 (raw TS, no transcoding). Most IPTV playe
 
 ### LAN only
 
-The bundled HTTP server has **no authentication**. It's intended for LAN use behind your home router. Don't port-forward it to the internet without putting something in front of it (reverse proxy with auth, VPN, etc.).
+The bundled HTTP server has **no authentication**, and by default it answers any client that can reach it.
+
+Turn on **LAN access only** to restrict it. Out of the box the allow-list covers the private address ranges (`192.168.x.x`, `10.x.x.x`, `172.16–31.x.x`), so it keeps working across your whole home network but won't serve anyone else, even if a port gets forwarded by mistake.
+
+To lock it down further or open it to more networks, edit **Allowed networks**. You can list as many subnets as you like, e.g.:
+
+```
+192.168.1.0/24, 192.168.20.0/24, 100.64.0.0/10
+```
+
+That allows your main LAN, a separate IoT/TV VLAN and Tailscale devices. Only IPv4 is supported.
+
+Even with LAN access only on, don't port-forward the server to the internet. Put a VPN or an authenticating reverse proxy in front of it if you need remote access.
 
 ## Building from source
 
 You need a Linux/macOS environment with `make`, `tar`, `ar`, and `python3`:
 
 ```sh
-git clone https://github.com/Stumarti/bouquet-to-m3u.git
-cd bouquet-to-m3u
-make ipk
+git clone https://github.com/stumarti/Enigma2-Bouquet-to-M3U.git
+cd Enigma2-Bouquet-to-M3U
+make ipk                     # version taken from CONTROL/control
+make ipk VERSION=1.2.0-test  # or override it
 ```
 
-The IPK will be in `dist/`.
+The IPK will be in `dist/`. The version is written into the package metadata and into the plugin (`__version__`, shown in its title bar).
 
-To bump the version, edit `CONTROL/control` and re-run `make ipk`.
+### Running the tests
+
+The unit tests use only the Python standard library, so no box or extra packages are needed:
+
+```sh
+make test
+```
+
+They cover the M3U/XMLTV generator (with OpenWebif responses faked), the HTTP server (URL paths, the access allow-list) and the plugin's settings screen. enigma2's own modules don't exist off-box, so `tests/__init__.py` installs small stand-ins for the parts the plugin uses. CI runs the tests before every build.
+
+## Continuous integration and releases
+
+`.github/workflows/build.yml` builds the IPK on every push to `main`, every pull request and every `v*` tag:
+
+- **Pushes and PRs** produce a development build versioned `<control version>+git<run>.<sha>`, e.g. `1.1.0+git12.abc1234`. Download it from the run's **Artifacts** section on the Actions tab.
+- **Tags** (`v1.2.0`) build using the tag's version and publish a GitHub Release with generated notes. The release carries two copies of the IPK: the versioned file and `enigma2-plugin-extensions-bouquettom3u.ipk`, a copy with a fixed name that the `releases/latest/download` link above uses.
+
+To cut a release:
+
+1. Bump `Version:` in `CONTROL/control` (e.g. `1.2.0`) and commit it.
+2. Tag and push:
+
+   ```sh
+   git tag v1.2.0
+   git push origin main v1.2.0
+   ```
+
+The workflow warns if the tag and `CONTROL/control` disagree. The tag version wins.
+
+## For feed and image maintainers
+
+Bouquet to M3U is ready to package in an image or plugin feed:
+
+- **Prebuilt IPK:** every GitHub release has an `Architecture: all` IPK with full metadata (Homepage, Source, License, Depends). You can add it to a feed as it is.
+- **Build from source:** [`contrib/openembedded/enigma2-plugin-extensions-bouquettom3u.bb`](contrib/openembedded/enigma2-plugin-extensions-bouquettom3u.bb) is a BitBake recipe (`allarch`, `gitpkgv`) that installs the plugin into `${libdir}/enigma2/python/Plugins/Extensions/BouquetToM3U` and stamps the version. Drop it into your enigma2-plugins layer. Pin `SRCREV` to a release tag's commit if you prefer reproducible builds.
+- **Runtime dependencies:** OpenWebif, plus the Python 3 core, json, html, compression, netclient and netserver modules.
+- **Maintainer scripts:** they skip on-box steps when `$D` is set, so offline rootfs installs are safe.
+- **Changelog:** see [CHANGELOG.md](CHANGELOG.md).
 
 ## Uninstall
 
@@ -114,15 +198,20 @@ rm -rf /var/www/m3u
 ├── CONTROL/              opkg package metadata
 │   ├── control           name, version, deps
 │   ├── postinst          post-install hook
-│   └── prerm             pre-uninstall hook
+│   ├── prerm             pre-uninstall hook
+│   └── postrm            post-uninstall cleanup
 ├── src/BouquetToM3U/     Enigma 2 plugin sources
 │   ├── __init__.py
 │   ├── plugin.py         UI, lifecycle, config, scheduling
 │   ├── generator.py      M3U + XMLTV generation
 │   ├── httpserver.py     bundled background HTTP server
 │   └── plugin.png        icon shown in Plugin Browser
-├── dist/                 built IPKs (gitignored except releases)
+├── .github/workflows/    CI build + release workflow
+├── contrib/openembedded/ BitBake recipe for feeds / images
+├── dist/                 locally built IPKs (not committed)
+├── tests/                unit tests (`make test`)
 ├── Makefile              `make ipk` to build
+├── CHANGELOG.md          release notes
 ├── README.md             this file
 └── LICENSE
 ```
