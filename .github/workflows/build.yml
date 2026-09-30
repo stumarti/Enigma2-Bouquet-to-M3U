@@ -1,0 +1,60 @@
+name: Build IPK
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Work out version
+        id: version
+        run: |
+          base=$(make -s version)
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            version="${GITHUB_REF_NAME#v}"
+            if [[ "$version" != "$base" ]]; then
+              echo "::warning::Tag $GITHUB_REF_NAME does not match CONTROL/control ($base); building as $version"
+            fi
+          else
+            # Dev build, e.g. 1.1.0+git42.abc1234 (sorts after 1.1.0 in opkg)
+            version="${base}+git${GITHUB_RUN_NUMBER}.${GITHUB_SHA::7}"
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "Building version $version"
+
+      - name: Check Python syntax
+        run: python3 -m compileall -q src/BouquetToM3U
+
+      - name: Build IPK
+        run: |
+          rm -f dist/*.ipk
+          make ipk VERSION='${{ steps.version.outputs.version }}'
+          ls -l dist/
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bouquettom3u-${{ steps.version.outputs.version }}
+          path: dist/*.ipk
+
+      - name: Publish release
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          ipk=$(ls dist/*.ipk)
+          # Stable-named copy so /releases/latest/download/<name> always works
+          cp "$ipk" dist/enigma2-plugin-extensions-bouquettom3u.ipk
+          gh release create "$GITHUB_REF_NAME" \
+            --title "Bouquet to M3U $GITHUB_REF_NAME" \
+            --generate-notes \
+            "$ipk" dist/enigma2-plugin-extensions-bouquettom3u.ipk

@@ -17,16 +17,46 @@ Tested on Zgemma H7 running PurE2; should work on any modern Enigma 2 image (Ope
 
 ## Install
 
-Download the latest IPK from [releases](../../releases) (or build your own — see below), copy it to your box, and install with opkg:
+Every tagged release on the [Releases page](https://github.com/stumarti/Enigma2-Bouquet-to-M3U/releases) has a ready-built IPK, compiled by GitHub Actions. It's a pure-Python package (`Architecture: all`), so the same file works on every receiver.
+
+### Option 1: install straight from GitHub on the box
+
+SSH (or telnet) into your receiver and run:
 
 ```sh
-scp dist/enigma2-plugin-extensions-bouquettom3u_*.ipk root@<box-ip>:/tmp/
-ssh root@<box-ip>
-opkg install /tmp/enigma2-plugin-extensions-bouquettom3u_*.ipk
+cd /tmp
+wget -O bouquettom3u.ipk https://github.com/stumarti/Enigma2-Bouquet-to-M3U/releases/latest/download/enigma2-plugin-extensions-bouquettom3u.ipk
+opkg install bouquettom3u.ipk
 init 4 && sleep 3 && init 3   # restart enigma2 so the autostart hook fires
 ```
 
-After enigma2 is back up, the plugin lives under:
+That URL always points at the newest release. If your image's `wget` can't do HTTPS (you'll see an SSL error), use `curl -L -o bouquettom3u.ipk <url>` if you have curl, or use option 2.
+
+### Option 2: copy it over from your PC
+
+1. Download `enigma2-plugin-extensions-bouquettom3u_<version>_all.ipk` from the [latest release](https://github.com/stumarti/Enigma2-Bouquet-to-M3U/releases/latest).
+2. Copy it to the box and install it:
+
+   ```sh
+   scp enigma2-plugin-extensions-bouquettom3u_*_all.ipk root@<box-ip>:/tmp/
+   ssh root@<box-ip>
+   opkg install /tmp/enigma2-plugin-extensions-bouquettom3u_*_all.ipk
+   init 4 && sleep 3 && init 3
+   ```
+
+   No `scp`? Use FileZilla / WinSCP to drop the file in `/tmp`, then run the `opkg install` line from a telnet/SSH session. Some images can also install it from **Menu → Setup → Software management → Install local extension** after you put the file in `/tmp`.
+
+### Upgrading
+
+Install the newer IPK the same way. `opkg install` replaces the old version and keeps your settings. Restart enigma2 afterwards. The installed version appears in the plugin's title bar, or you can check it with:
+
+```sh
+opkg list-installed | grep bouquettom3u
+```
+
+### After installing
+
+When enigma2 is back up, you'll find the plugin under:
 
 - **Menu → Plugins → Bouquet to M3U**
 - **Extensions menu** (blue button on most images)
@@ -85,14 +115,32 @@ The bundled HTTP server has **no authentication**. It's intended for LAN use beh
 You need a Linux/macOS environment with `make`, `tar`, `ar`, and `python3`:
 
 ```sh
-git clone https://github.com/Stumarti/bouquet-to-m3u.git
-cd bouquet-to-m3u
-make ipk
+git clone https://github.com/stumarti/Enigma2-Bouquet-to-M3U.git
+cd Enigma2-Bouquet-to-M3U
+make ipk                     # version taken from CONTROL/control
+make ipk VERSION=1.2.0-test  # or override it
 ```
 
-The IPK will be in `dist/`.
+The IPK will be in `dist/`. The version is written into the package metadata and into the plugin (`__version__`, shown in its title bar).
 
-To bump the version, edit `CONTROL/control` and re-run `make ipk`.
+## Continuous integration and releases
+
+`.github/workflows/build.yml` builds the IPK on every push to `main`, every pull request and every `v*` tag:
+
+- **Pushes and PRs** produce a development build versioned `<control version>+git<run>.<sha>`, e.g. `1.1.0+git12.abc1234`. Download it from the run's **Artifacts** section on the Actions tab.
+- **Tags** (`v1.2.0`) build using the tag's version and publish a GitHub Release with generated notes. The release carries two copies of the IPK: the versioned file and `enigma2-plugin-extensions-bouquettom3u.ipk`, a copy with a fixed name that the `releases/latest/download` link above uses.
+
+To cut a release:
+
+1. Bump `Version:` in `CONTROL/control` (e.g. `1.2.0`) and commit it.
+2. Tag and push:
+
+   ```sh
+   git tag v1.2.0
+   git push origin main v1.2.0
+   ```
+
+The workflow warns if the tag and `CONTROL/control` disagree. The tag version wins.
 
 ## Uninstall
 
@@ -121,7 +169,8 @@ rm -rf /var/www/m3u
 │   ├── generator.py      M3U + XMLTV generation
 │   ├── httpserver.py     bundled background HTTP server
 │   └── plugin.png        icon shown in Plugin Browser
-├── dist/                 built IPKs (gitignored except releases)
+├── .github/workflows/    CI build + release workflow
+├── dist/                 locally built IPKs
 ├── Makefile              `make ipk` to build
 ├── README.md             this file
 └── LICENSE

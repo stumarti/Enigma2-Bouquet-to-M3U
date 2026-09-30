@@ -27,7 +27,7 @@ from Components.config import (
 from Components.ConfigList import ConfigListScreen
 from Components.Sources.StaticText import StaticText
 
-from . import generator
+from . import __version__, generator
 from .httpserver import FileServer
 
 
@@ -189,7 +189,7 @@ class BouquetToM3USetup(ConfigListScreen, Screen):
 
     def __init__(self, session):
         Screen.__init__(self, session)
-        self.setTitle(_("Bouquet to M3U"))
+        self.setTitle(_("Bouquet to M3U") + " v" + __version__)
 
         self["status"] = StaticText("")
         self["key_red"] = StaticText(_("Cancel"))
