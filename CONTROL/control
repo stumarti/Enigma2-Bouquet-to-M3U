@@ -1,7 +1,7 @@
 Package: enigma2-plugin-extensions-bouquettom3u
 Version: 1.2.0
 Architecture: all
-Maintainer: Stumarti
+Maintainer: Stuart Martin <17686175+stumarti@users.noreply.github.com>
 Homepage: https://github.com/stumarti/Enigma2-Bouquet-to-M3U
 Source: https://github.com/stumarti/Enigma2-Bouquet-to-M3U
 License: MIT
