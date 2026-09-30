@@ -35,6 +35,9 @@ jobs:
       - name: Check Python syntax
         run: python3 -m compileall -q src/BouquetToM3U
 
+      - name: Run unit tests
+        run: make test
+
       - name: Build IPK
         run: |
           rm -f dist/*.ipk

@@ -54,7 +54,7 @@ config.plugins.BouquetToM3U.port = ConfigInteger(
     default=8888, limits=(1024, 65535))
 config.plugins.BouquetToM3U.picon_dir = ConfigText(
     default="/usr/share/enigma2/picon", fixed_size=False, visible_width=50)
-config.plugins.BouquetToM3U.lan_only = ConfigYesNo(default=True)
+config.plugins.BouquetToM3U.lan_only = ConfigYesNo(default=False)
 config.plugins.BouquetToM3U.allowed_networks = ConfigText(
     default=DEFAULT_ALLOWED_NETWORKS, fixed_size=False, visible_width=50)
 

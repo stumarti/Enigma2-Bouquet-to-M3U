@@ -73,7 +73,7 @@ Open the plugin and you'll see these options:
 | Refresh interval | Every hour | How often to regenerate the M3U/EPG. Choose between 15 min and once a day, or "Manual only". |
 | HTTP server port | 8888 | Port the bundled web server binds to. Must be ≥1024 and not already in use. |
 | Picon directory | `/usr/share/enigma2/picon` | Where your channel logos live. Change this if you store picons on a USB stick or HDD. |
-| LAN access only | Yes | Only answer requests from the networks listed below (plus the box itself). Anyone else gets `403 Forbidden`. Set to No to allow any client. |
+| LAN access only | No | When set to Yes, only answer requests from the networks listed below (plus the box itself). Anyone else gets `403 Forbidden`. |
 | Allowed networks | `192.168.0.0/16, 10.0.0.0/8, 172.16.0.0/12` | Comma-separated list of subnets in CIDR notation, used when LAN access only is on. A bare address such as `192.168.1.50` allows a single device. |
 
 Buttons:
@@ -112,7 +112,9 @@ Generated stream URLs target port 8001 (raw TS, no transcoding). Most IPTV playe
 
 ### LAN only
 
-The bundled HTTP server has **no authentication**. By default it only answers clients on the private address ranges (`192.168.x.x`, `10.x.x.x`, `172.16–31.x.x`), so it keeps working across your whole home network but won't serve anyone else, even if a port gets forwarded by mistake.
+The bundled HTTP server has **no authentication**, and by default it answers any client that can reach it.
+
+Turn on **LAN access only** to restrict it. Out of the box the allow-list covers the private address ranges (`192.168.x.x`, `10.x.x.x`, `172.16–31.x.x`), so it keeps working across your whole home network but won't serve anyone else, even if a port gets forwarded by mistake.
 
 To lock it down further or open it to more networks, edit **Allowed networks**. You can list as many subnets as you like, e.g.:
 
@@ -122,7 +124,7 @@ To lock it down further or open it to more networks, edit **Allowed networks**. 
 
 That allows your main LAN, a separate IoT/TV VLAN and Tailscale devices. Only IPv4 is supported.
 
-Even with this on, don't port-forward the server to the internet. Put a VPN or an authenticating reverse proxy in front of it if you need remote access.
+Even with LAN access only on, don't port-forward the server to the internet. Put a VPN or an authenticating reverse proxy in front of it if you need remote access.
 
 ## Building from source
 
@@ -136,6 +138,16 @@ make ipk VERSION=1.2.0-test  # or override it
 ```
 
 The IPK will be in `dist/`. The version is written into the package metadata and into the plugin (`__version__`, shown in its title bar).
+
+### Running the tests
+
+The unit tests use only the Python standard library, so no box or extra packages are needed:
+
+```sh
+make test
+```
+
+They cover the M3U/XMLTV generator (with OpenWebif responses faked), the HTTP server (URL paths, the access allow-list) and the plugin's settings screen. enigma2's own modules don't exist off-box, so `tests/__init__.py` installs small stand-ins for the parts the plugin uses. CI runs the tests before every build.
 
 ## Continuous integration and releases
 
@@ -197,6 +209,7 @@ rm -rf /var/www/m3u
 ├── .github/workflows/    CI build + release workflow
 ├── contrib/openembedded/ BitBake recipe for feeds / images
 ├── dist/                 locally built IPKs (not committed)
+├── tests/                unit tests (`make test`)
 ├── Makefile              `make ipk` to build
 ├── CHANGELOG.md          release notes
 ├── README.md             this file

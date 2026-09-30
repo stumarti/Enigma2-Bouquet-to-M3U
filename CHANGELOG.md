@@ -2,7 +2,7 @@
 
 ## 1.2.0
 
-- New "LAN access only" setting (on by default) with a configurable,
+- New "LAN access only" setting (off by default) with a configurable,
   comma-separated list of allowed subnets. Other clients get 403.
 - Fix: the bundled HTTP server now answers on the advertised `/m3u/...`
   paths (`/m3u/channels.m3u`, `/m3u/epg.xml.gz`, `/m3u/picon/...`).
@@ -12,8 +12,9 @@
   dependency on OpenWebif (used for channel and EPG lookups).
 - Maintainer scripts skip on-box steps during offline (image build)
   installs; uninstall now removes leftover compiled bytecode.
-- GitHub Actions builds the IPK on every push/PR and publishes tagged
-  releases.
+- GitHub Actions runs the tests and builds the IPK on every push/PR, and
+  publishes tagged releases.
+- Unit test suite (`make test`), standard library only.
 - OpenEmbedded recipe in `contrib/openembedded/` for feed and image builders.
 
 ## 1.1.0

@@ -6,7 +6,7 @@ IPK     := dist/$(PKG)_$(VERSION)_all.ipk
 
 PLUGIN_DST := build/usr/lib/enigma2/python/Plugins/Extensions/BouquetToM3U
 
-.PHONY: all clean ipk version FORCE
+.PHONY: all clean ipk test version FORCE
 
 all: ipk
 
@@ -29,6 +29,9 @@ $(IPK): src/BouquetToM3U/*.py src/BouquetToM3U/plugin.png CONTROL/control CONTRO
 	@rm -f $(IPK)
 	@(cd build && ar -r ../$(IPK) debian-binary control.tar.gz data.tar.gz) 2>/dev/null
 	@echo "==> $(IPK) built ($$(stat -c%s $(IPK)) bytes)"
+
+test:
+	python3 -m unittest discover -b -v -s tests -t .
 
 version:
 	@echo $(VERSION)
