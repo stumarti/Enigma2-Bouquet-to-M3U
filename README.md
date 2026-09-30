@@ -4,6 +4,8 @@ An Enigma 2 plugin that exports a bouquet as an **M3U playlist** plus an **XMLTV
 
 Tested on Zgemma H7 running PurE2; should work on any modern Enigma 2 image (OpenPLi, OpenATV, OpenViX, OpenSPA, etc.) with OpenWebif and Python 3.
 
+**Requirements:** a Python 3 based image with OpenWebif installed (`enigma2-plugin-extensions-openwebif`). The plugin reads channel lists and EPG from OpenWebif's API, and opkg pulls it in automatically if it's missing.
+
 ## Features
 
 - One M3U URL on your LAN that any IPTV app can read.
@@ -142,6 +144,16 @@ To cut a release:
 
 The workflow warns if the tag and `CONTROL/control` disagree. The tag version wins.
 
+## For feed and image maintainers
+
+Bouquet to M3U is ready to package in an image or plugin feed:
+
+- **Prebuilt IPK:** every GitHub release has an `Architecture: all` IPK with full metadata (Homepage, Source, License, Depends). You can add it to a feed as it is.
+- **Build from source:** [`contrib/openembedded/enigma2-plugin-extensions-bouquettom3u.bb`](contrib/openembedded/enigma2-plugin-extensions-bouquettom3u.bb) is a BitBake recipe (`allarch`, `gitpkgv`) that installs the plugin into `${libdir}/enigma2/python/Plugins/Extensions/BouquetToM3U` and stamps the version. Drop it into your enigma2-plugins layer. Pin `SRCREV` to a release tag's commit if you prefer reproducible builds.
+- **Runtime dependencies:** OpenWebif, plus the Python 3 core, json, html, compression, netclient and netserver modules.
+- **Maintainer scripts:** they skip on-box steps when `$D` is set, so offline rootfs installs are safe.
+- **Changelog:** see [CHANGELOG.md](CHANGELOG.md).
+
 ## Uninstall
 
 ```sh
@@ -162,7 +174,8 @@ rm -rf /var/www/m3u
 ├── CONTROL/              opkg package metadata
 │   ├── control           name, version, deps
 │   ├── postinst          post-install hook
-│   └── prerm             pre-uninstall hook
+│   ├── prerm             pre-uninstall hook
+│   └── postrm            post-uninstall cleanup
 ├── src/BouquetToM3U/     Enigma 2 plugin sources
 │   ├── __init__.py
 │   ├── plugin.py         UI, lifecycle, config, scheduling
@@ -170,8 +183,10 @@ rm -rf /var/www/m3u
 │   ├── httpserver.py     bundled background HTTP server
 │   └── plugin.png        icon shown in Plugin Browser
 ├── .github/workflows/    CI build + release workflow
-├── dist/                 locally built IPKs
+├── contrib/openembedded/ BitBake recipe for feeds / images
+├── dist/                 locally built IPKs (not committed)
 ├── Makefile              `make ipk` to build
+├── CHANGELOG.md          release notes
 ├── README.md             this file
 └── LICENSE
 ```

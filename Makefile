@@ -12,7 +12,7 @@ all: ipk
 
 ipk: $(IPK)
 
-$(IPK): src/BouquetToM3U/*.py src/BouquetToM3U/plugin.png CONTROL/control CONTROL/postinst CONTROL/prerm FORCE
+$(IPK): src/BouquetToM3U/*.py src/BouquetToM3U/plugin.png CONTROL/control CONTROL/postinst CONTROL/prerm CONTROL/postrm FORCE
 	@echo "==> Building $(IPK)"
 	@rm -rf build
 	@mkdir -p $(PLUGIN_DST)
@@ -20,10 +20,10 @@ $(IPK): src/BouquetToM3U/*.py src/BouquetToM3U/plugin.png CONTROL/control CONTRO
 	@cp src/BouquetToM3U/*.py src/BouquetToM3U/plugin.png $(PLUGIN_DST)/
 	@sed -i 's/^__version__ = .*/__version__ = "$(VERSION)"/' $(PLUGIN_DST)/__init__.py
 	@mkdir -p build/CONTROL dist
-	@cp CONTROL/postinst CONTROL/prerm build/CONTROL/
-	@chmod 755 build/CONTROL/postinst build/CONTROL/prerm
+	@cp CONTROL/postinst CONTROL/prerm CONTROL/postrm build/CONTROL/
+	@chmod 755 build/CONTROL/postinst build/CONTROL/prerm build/CONTROL/postrm
 	@sed 's/^Version:.*/Version: $(VERSION)/' CONTROL/control > build/CONTROL/control
-	@tar --owner=0 --group=0 -C build/CONTROL -czf build/control.tar.gz ./control ./postinst ./prerm
+	@tar --owner=0 --group=0 -C build/CONTROL -czf build/control.tar.gz ./control ./postinst ./prerm ./postrm
 	@tar --owner=0 --group=0 -C build --exclude='./control.tar.gz' --exclude='./data.tar.gz' --exclude='./debian-binary' -czf build/data.tar.gz ./usr ./var
 	@echo '2.0' > build/debian-binary
 	@rm -f $(IPK)

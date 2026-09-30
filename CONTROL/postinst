@@ -1,4 +1,8 @@
 #!/bin/sh
+# $D is set when installing into an offline rootfs (image build); only
+# touch the running system on a real on-box install.
+[ -n "$D" ] && exit 0
+
 # Compile .py to .pyc up front (saves a few seconds on first plugin load).
 PYDIR=/usr/lib/enigma2/python/Plugins/Extensions/BouquetToM3U
 if [ -d "$PYDIR" ]; then
@@ -7,7 +11,7 @@ fi
 
 mkdir -p /var/www/m3u
 
-cat <<EOF
+cat <<MSG
 
 ------------------------------------------------------------
 Bouquet to M3U installed.
@@ -21,6 +25,6 @@ After restart, configure it via:
 or
     Menu -> Extensions -> Bouquet to M3U
 ------------------------------------------------------------
-EOF
+MSG
 
 exit 0

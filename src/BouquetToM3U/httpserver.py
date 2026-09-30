@@ -12,8 +12,21 @@ import functools
 from http.server import HTTPServer, SimpleHTTPRequestHandler
 
 
+URL_PREFIX = "/m3u"
+
+
 class _QuietHandler(SimpleHTTPRequestHandler):
-    """Same as SimpleHTTPRequestHandler but doesn't spam the enigma2 log."""
+    """Same as SimpleHTTPRequestHandler but doesn't spam the enigma2 log.
+
+    Published URLs look like /m3u/channels.m3u, while the served directory
+    is the output dir itself, so the /m3u prefix is stripped here.
+    """
+
+    def translate_path(self, path):
+        if path == URL_PREFIX or path.startswith(URL_PREFIX + "/") \
+                or path.startswith(URL_PREFIX + "?"):
+            path = path[len(URL_PREFIX):] or "/"
+        return SimpleHTTPRequestHandler.translate_path(self, path)
 
     def log_message(self, format, *args):
         return
