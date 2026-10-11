@@ -1,0 +1,90 @@
+name: Build IPK
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Work out version
+        id: version
+        run: |
+          base=$(make -s version)
+          prerelease=false
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            version="${GITHUB_REF_NAME#v}"
+            if [[ "$version" == *-* ]]; then
+              # v1.2.0-rc1 is a pre-release. Package it as 1.2.0~rc1:
+              # opkg reads "-" as a package revision (1.2.0-rc1 > 1.2.0),
+              # while "~" sorts before the final 1.2.0.
+              prerelease=true
+              version="${version/-/\~}"
+            fi
+            if [[ "${version%%\~*}" != "$base" ]]; then
+              echo "::warning::Tag $GITHUB_REF_NAME does not match CONTROL/control ($base); building as $version"
+            fi
+          else
+            # Dev build, e.g. 1.1.0+git42.abc1234 (sorts after 1.1.0 in opkg)
+            version="${base}+git${GITHUB_RUN_NUMBER}.${GITHUB_SHA::7}"
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "prerelease=$prerelease" >> "$GITHUB_OUTPUT"
+          echo "Building version $version"
+
+      - name: Check Python syntax
+        run: python3 -m compileall -q src/BouquetToM3U
+
+      - name: Run unit tests
+        run: make test
+
+      - name: Build IPK
+        run: |
+          rm -f dist/*.ipk
+          make ipk VERSION='${{ steps.version.outputs.version }}'
+          ls -l dist/
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bouquettom3u-${{ steps.version.outputs.version }}
+          path: dist/*.ipk
+
+      - name: Publish release
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PRERELEASE: ${{ steps.version.outputs.prerelease }}
+        run: |
+          ipk=$(ls dist/*.ipk)
+          # Pre-releases are excluded from /releases/latest, so the README's
+          # install link keeps pointing at the newest stable version.
+          flags=()
+          if [[ "$PRERELEASE" == true ]]; then
+            flags+=(--prerelease)
+          fi
+          # Stable-named copy so /releases/latest/download/<name> always works
+          cp "$ipk" dist/enigma2-plugin-extensions-bouquettom3u.ipk
+          files=("$ipk" dist/enigma2-plugin-extensions-bouquettom3u.ipk)
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            # Release was created by hand (e.g. on the GitHub Releases page,
+            # which also creates the tag): attach the builds to it.
+            gh release upload "$GITHUB_REF_NAME" "${files[@]}" --clobber
+            if [[ "$PRERELEASE" == true ]]; then
+              gh release edit "$GITHUB_REF_NAME" --prerelease
+            fi
+          else
+            gh release create "$GITHUB_REF_NAME" \
+              --title "Bouquet to M3U $GITHUB_REF_NAME" \
+              --generate-notes \
+              "${flags[@]}" \
+              "${files[@]}"
+          fi

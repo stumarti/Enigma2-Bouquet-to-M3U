@@ -1,0 +1,10 @@
+#!/bin/sh
+[ -n "$D" ] && exit 0
+
+# Remove compiled bytecode that opkg doesn't know about, so the plugin
+# directory disappears cleanly. /var/www/m3u is deliberately left alone
+# so any served URLs keep working until the user removes it.
+if [ "$1" = "remove" ] || [ "$1" = "purge" ]; then
+    rm -rf /usr/lib/enigma2/python/Plugins/Extensions/BouquetToM3U
+fi
+exit 0
