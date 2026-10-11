@@ -73,8 +73,18 @@ jobs:
           fi
           # Stable-named copy so /releases/latest/download/<name> always works
           cp "$ipk" dist/enigma2-plugin-extensions-bouquettom3u.ipk
-          gh release create "$GITHUB_REF_NAME" \
-            --title "Bouquet to M3U $GITHUB_REF_NAME" \
-            --generate-notes \
-            "${flags[@]}" \
-            "$ipk" dist/enigma2-plugin-extensions-bouquettom3u.ipk
+          files=("$ipk" dist/enigma2-plugin-extensions-bouquettom3u.ipk)
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            # Release was created by hand (e.g. on the GitHub Releases page,
+            # which also creates the tag): attach the builds to it.
+            gh release upload "$GITHUB_REF_NAME" "${files[@]}" --clobber
+            if [[ "$PRERELEASE" == true ]]; then
+              gh release edit "$GITHUB_REF_NAME" --prerelease
+            fi
+          else
+            gh release create "$GITHUB_REF_NAME" \
+              --title "Bouquet to M3U $GITHUB_REF_NAME" \
+              --generate-notes \
+              "${flags[@]}" \
+              "${files[@]}"
+          fi
