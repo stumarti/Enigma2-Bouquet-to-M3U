@@ -20,9 +20,17 @@ jobs:
         id: version
         run: |
           base=$(make -s version)
+          prerelease=false
           if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
             version="${GITHUB_REF_NAME#v}"
-            if [[ "$version" != "$base" ]]; then
+            if [[ "$version" == *-* ]]; then
+              # v1.2.0-rc1 is a pre-release. Package it as 1.2.0~rc1:
+              # opkg reads "-" as a package revision (1.2.0-rc1 > 1.2.0),
+              # while "~" sorts before the final 1.2.0.
+              prerelease=true
+              version="${version/-/\~}"
+            fi
+            if [[ "${version%%\~*}" != "$base" ]]; then
               echo "::warning::Tag $GITHUB_REF_NAME does not match CONTROL/control ($base); building as $version"
             fi
           else
@@ -30,6 +38,7 @@ jobs:
             version="${base}+git${GITHUB_RUN_NUMBER}.${GITHUB_SHA::7}"
           fi
           echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "prerelease=$prerelease" >> "$GITHUB_OUTPUT"
           echo "Building version $version"
 
       - name: Check Python syntax
@@ -53,11 +62,19 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/v')
         env:
           GH_TOKEN: ${{ github.token }}
+          PRERELEASE: ${{ steps.version.outputs.prerelease }}
         run: |
           ipk=$(ls dist/*.ipk)
+          # Pre-releases are excluded from /releases/latest, so the README's
+          # install link keeps pointing at the newest stable version.
+          flags=()
+          if [[ "$PRERELEASE" == true ]]; then
+            flags+=(--prerelease)
+          fi
           # Stable-named copy so /releases/latest/download/<name> always works
           cp "$ipk" dist/enigma2-plugin-extensions-bouquettom3u.ipk
           gh release create "$GITHUB_REF_NAME" \
             --title "Bouquet to M3U $GITHUB_REF_NAME" \
             --generate-notes \
+            "${flags[@]}" \
             "$ipk" dist/enigma2-plugin-extensions-bouquettom3u.ipk

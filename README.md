@@ -168,6 +168,15 @@ To cut a release:
 
 The workflow warns if the tag and `CONTROL/control` disagree. The tag version wins.
 
+**Test releases:** a tag with a suffix, such as `v1.2.0-rc1`, publishes a GitHub *pre-release*. It's packaged as version `1.2.0~rc1`, so opkg treats it as older than the final `1.2.0` and upgrades cleanly. Pre-releases don't count as "latest", so the install link above keeps pointing at the newest stable version. To install one on a box:
+
+```sh
+wget -O /tmp/bouquettom3u.ipk https://github.com/stumarti/Enigma2-Bouquet-to-M3U/releases/download/v1.2.0-rc1/enigma2-plugin-extensions-bouquettom3u.ipk
+opkg install /tmp/bouquettom3u.ipk
+```
+
+Tags must start with a lowercase `v`.
+
 ## For feed and image maintainers
 
 Bouquet to M3U is ready to package in an image or plugin feed:
