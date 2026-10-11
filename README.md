@@ -21,40 +21,32 @@ Tested on Zgemma H7 running PurE2; should work on any modern Enigma 2 image (Ope
 
 Every tagged release on the [Releases page](https://github.com/stumarti/Enigma2-Bouquet-to-M3U/releases) has a ready-built IPK, compiled by GitHub Actions. It's a pure-Python package (`Architecture: all`), so the same file works on every receiver.
 
-### Option 1: install straight from GitHub on the box
+### Quick install
 
-SSH (or telnet) into your receiver and run:
+SSH (or telnet) into your receiver and paste this one line:
 
 ```sh
-cd /tmp
-wget -O bouquettom3u.ipk https://github.com/stumarti/Enigma2-Bouquet-to-M3U/releases/latest/download/enigma2-plugin-extensions-bouquettom3u.ipk
-opkg install bouquettom3u.ipk
-init 4 && sleep 3 && init 3   # restart enigma2 so the autostart hook fires
+wget -O /tmp/bouquettom3u.ipk https://github.com/stumarti/Enigma2-Bouquet-to-M3U/releases/latest/download/enigma2-plugin-extensions-bouquettom3u.ipk && opkg install /tmp/bouquettom3u.ipk && init 4 && sleep 3 && init 3
 ```
 
-That URL always points at the newest release. If your image's `wget` can't do HTTPS (you'll see an SSL error), use `curl -L -o bouquettom3u.ipk <url>` if you have curl, or use option 2.
+It downloads the newest release, installs it and restarts enigma2. Run the same line again to **upgrade**: your settings are kept. The installed version appears in the plugin's title bar.
 
-### Option 2: copy it over from your PC
+If it doesn't work:
+
+- **SSL / HTTPS error from `wget`:** your image's `wget` can't do HTTPS. Swap `wget -O` for `curl -L -o` if you have curl, or use the manual install below.
+- **opkg reports a missing dependency:** run `opkg update` first, then paste the line again.
+
+### Manual install
 
 1. Download `enigma2-plugin-extensions-bouquettom3u_<version>_all.ipk` from the [latest release](https://github.com/stumarti/Enigma2-Bouquet-to-M3U/releases/latest).
-2. Copy it to the box and install it:
+2. Copy it to `/tmp` on the box with `scp`, FileZilla or WinSCP.
+3. On the box, run:
 
    ```sh
-   scp enigma2-plugin-extensions-bouquettom3u_*_all.ipk root@<box-ip>:/tmp/
-   ssh root@<box-ip>
-   opkg install /tmp/enigma2-plugin-extensions-bouquettom3u_*_all.ipk
-   init 4 && sleep 3 && init 3
+   opkg install /tmp/enigma2-plugin-extensions-bouquettom3u_*_all.ipk && init 4 && sleep 3 && init 3
    ```
 
-   No `scp`? Use FileZilla / WinSCP to drop the file in `/tmp`, then run the `opkg install` line from a telnet/SSH session. Some images can also install it from **Menu → Setup → Software management → Install local extension** after you put the file in `/tmp`.
-
-### Upgrading
-
-Install the newer IPK the same way. `opkg install` replaces the old version and keeps your settings. Restart enigma2 afterwards. The installed version appears in the plugin's title bar, or you can check it with:
-
-```sh
-opkg list-installed | grep bouquettom3u
-```
+   Some images can also install it from **Menu → Setup → Software management → Install local extension**.
 
 ### After installing
 
@@ -171,8 +163,7 @@ The workflow warns if the tag and `CONTROL/control` disagree. The tag version wi
 **Test releases:** a tag with a suffix, such as `v1.2.0-rc1`, publishes a GitHub *pre-release*. It's packaged as version `1.2.0~rc1`, so opkg treats it as older than the final `1.2.0` and upgrades cleanly. Pre-releases don't count as "latest", so the install link above keeps pointing at the newest stable version. To install one on a box:
 
 ```sh
-wget -O /tmp/bouquettom3u.ipk https://github.com/stumarti/Enigma2-Bouquet-to-M3U/releases/download/v1.2.0-rc1/enigma2-plugin-extensions-bouquettom3u.ipk
-opkg install /tmp/bouquettom3u.ipk
+wget -O /tmp/bouquettom3u.ipk https://github.com/stumarti/Enigma2-Bouquet-to-M3U/releases/download/v1.2.0-rc1/enigma2-plugin-extensions-bouquettom3u.ipk && opkg install /tmp/bouquettom3u.ipk && init 4 && sleep 3 && init 3
 ```
 
 Tags must start with a lowercase `v`.
@@ -190,8 +181,7 @@ Bouquet to M3U is ready to package in an image or plugin feed:
 ## Uninstall
 
 ```sh
-opkg remove enigma2-plugin-extensions-bouquettom3u
-init 4 && sleep 3 && init 3
+opkg remove enigma2-plugin-extensions-bouquettom3u && init 4 && sleep 3 && init 3
 ```
 
 The output directory `/var/www/m3u` is left in place so any IPTV apps referencing it don't break immediately. Remove it manually if you want a clean state:
