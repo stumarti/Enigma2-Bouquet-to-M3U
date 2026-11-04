@@ -5,6 +5,8 @@
 - The setup screen and the Show URLs popup show when the playlist and EPG
   were last updated, with channel and event counts, plus the time of the
   last failed refresh if it failed since.
+- Release tags starting with a capital `V` (e.g. `V1.3.0`) now build and
+  publish the IPK too; previously only lowercase `v` tags did.
 
 ## 1.2.0
 
