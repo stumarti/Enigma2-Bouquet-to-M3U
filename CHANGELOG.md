@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.3.0 (unreleased)
+
+- The setup screen and the Show URLs popup show when the playlist and EPG
+  were last updated, with channel and event counts, plus the time of the
+  last failed refresh if it failed since.
+
 ## 1.2.0
 
 - New "LAN access only" setting (off by default) with a configurable,

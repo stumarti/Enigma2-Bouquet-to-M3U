@@ -73,6 +73,8 @@ Buttons:
 - **Green** — Save (port and access changes apply immediately, no enigma2 restart needed).
 - **Yellow** — Refresh now (shows a progress screen while it runs).
 - **Blue** — Show URLs (handy when setting up an IPTV app — read them off your TV instead of having to SSH in).
+
+Below the settings, the screen shows the server status, the M3U URL and when the playlist and EPG were **last updated** (with channel and event counts). If a refresh has failed since, it also shows when, and the details are in the enigma2 log.
 - **Red** — Cancel.
 
 ## URLs

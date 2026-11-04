@@ -11,6 +11,7 @@ Provides:
 
 import os
 import threading
+import time
 import traceback
 
 from enigma import eTimer
@@ -86,6 +87,11 @@ _file_server = FileServer(OUTPUT_DIR,
                           allowed_networks=_allowed_networks())
 _refresh_timer = None
 _refresh_in_progress = False
+# Last successful refresh: {"time", "channels", "events"}; None until one
+# runs this session.
+_last_refresh = None
+# Time of the most recent failed refresh, cleared by the next success.
+_last_failure = None
 
 
 def _restart_server_if_port_changed():
@@ -133,9 +139,37 @@ def _list_bouquets():
     return out
 
 
+def _fmt_time(ts):
+    return time.strftime("%Y-%m-%d %H:%M", time.localtime(ts))
+
+
+def _last_update_text():
+    """Status lines describing when the playlist and EPG were last updated."""
+    last = _last_refresh
+    if last is None:
+        # Nothing has run since enigma2 started: the playlist file's
+        # modification time shows when the last refresh happened.
+        try:
+            last = {"time": os.path.getmtime(
+                os.path.join(OUTPUT_DIR, "channels.m3u"))}
+        except OSError:
+            pass
+    if last is None:
+        text = _("Last update: never")
+    elif "channels" in last:
+        text = _("Last update: %s (%d channels, %d events)") % (
+            _fmt_time(last["time"]), last["channels"], last["events"])
+    else:
+        text = _("Last update: %s") % _fmt_time(last["time"])
+    if _last_failure is not None:
+        text += "\n" + _("Last attempt failed: %s (see enigma2 log)") % (
+            _fmt_time(_last_failure))
+    return text
+
+
 def _do_refresh():
     """Run the generator. Safe to call from a thread."""
-    global _refresh_in_progress
+    global _refresh_in_progress, _last_refresh, _last_failure
     if _refresh_in_progress:
         return None
     _refresh_in_progress = True
@@ -144,6 +178,7 @@ def _do_refresh():
             BOUQUETS_DIR, config.plugins.BouquetToM3U.bouquet.value)
         if not os.path.isfile(bouquet_file):
             print("[BouquetToM3U] bouquet file missing: %s" % bouquet_file)
+            _last_failure = time.time()
             return None
         result = generator.refresh_all(
             bouquet_filename=bouquet_file,
@@ -155,9 +190,14 @@ def _do_refresh():
             picon_dir=config.plugins.BouquetToM3U.picon_dir.value)
         print("[BouquetToM3U] refresh OK: %d channels, %d events" % (
             result["channels"], result["events"]))
+        _last_refresh = {"time": time.time(),
+                         "channels": result["channels"],
+                         "events": result["events"]}
+        _last_failure = None
         return result
     except Exception:
         print("[BouquetToM3U] refresh failed:\n" + traceback.format_exc())
+        _last_failure = time.time()
         return None
     finally:
         _refresh_in_progress = False
@@ -196,13 +236,13 @@ def _refresh_then_reschedule():
 
 class BouquetToM3USetup(ConfigListScreen, Screen):
     skin = """
-    <screen name="BouquetToM3USetup" position="center,center" size="600,400" title="Bouquet to M3U">
+    <screen name="BouquetToM3USetup" position="center,center" size="600,440" title="Bouquet to M3U">
         <widget name="config" position="10,10" size="580,260" scrollbarMode="showOnDemand" />
-        <widget source="status" render="Label" position="10,280" size="580,60" font="Regular;20" />
-        <widget source="key_red"    render="Label" position="10,360"  size="140,30" font="Regular;18" halign="center" backgroundColor="#9f1313" foregroundColor="#ffffff" />
-        <widget source="key_green"  render="Label" position="160,360" size="140,30" font="Regular;18" halign="center" backgroundColor="#1f771f" foregroundColor="#ffffff" />
-        <widget source="key_yellow" render="Label" position="310,360" size="140,30" font="Regular;18" halign="center" backgroundColor="#a08500" foregroundColor="#ffffff" />
-        <widget source="key_blue"   render="Label" position="460,360" size="140,30" font="Regular;18" halign="center" backgroundColor="#18188b" foregroundColor="#ffffff" />
+        <widget source="status" render="Label" position="10,280" size="580,105" font="Regular;18" />
+        <widget source="key_red"    render="Label" position="10,400"  size="140,30" font="Regular;18" halign="center" backgroundColor="#9f1313" foregroundColor="#ffffff" />
+        <widget source="key_green"  render="Label" position="160,400" size="140,30" font="Regular;18" halign="center" backgroundColor="#1f771f" foregroundColor="#ffffff" />
+        <widget source="key_yellow" render="Label" position="310,400" size="140,30" font="Regular;18" halign="center" backgroundColor="#a08500" foregroundColor="#ffffff" />
+        <widget source="key_blue"   render="Label" position="460,400" size="140,30" font="Regular;18" halign="center" backgroundColor="#18188b" foregroundColor="#ffffff" />
     </screen>
     """
 
@@ -262,7 +302,7 @@ class BouquetToM3USetup(ConfigListScreen, Screen):
         port = config.plugins.BouquetToM3U.port.value
         self["status"].setText(
             _("HTTP server: %s on port %d\nM3U: http://%s:%d/m3u/channels.m3u")
-            % (server, port, ip, port))
+            % (server, port, ip, port) + "\n" + _last_update_text())
 
     def cancel(self):
         for x in self["config"].list:
@@ -321,7 +361,7 @@ class BouquetToM3USetup(ConfigListScreen, Screen):
             "EPG (XMLTV, gzipped):\nhttp://%s:%d/m3u/epg.xml.gz\n\n"
             "Point any IPTV player at the M3U URL — the EPG is\n"
             "loaded automatically via the url-tvg header."
-        ) % (ip, port, ip, port)
+        ) % (ip, port, ip, port) + "\n\n" + _last_update_text()
         self.session.open(MessageBox, msg, MessageBox.TYPE_INFO, timeout=15)
 
 
