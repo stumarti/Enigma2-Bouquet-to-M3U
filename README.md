@@ -73,6 +73,8 @@ Buttons:
 - **Green** — Save (port and access changes apply immediately, no enigma2 restart needed).
 - **Yellow** — Refresh now (shows a progress screen while it runs).
 - **Blue** — Show URLs (handy when setting up an IPTV app — read them off your TV instead of having to SSH in).
+
+Below the settings, the screen shows the server status, the M3U URL and when the playlist and EPG were **last updated** (with channel and event counts). If a refresh has failed since, it also shows when, and the details are in the enigma2 log.
 - **Red** — Cancel.
 
 ## URLs
@@ -143,7 +145,7 @@ They cover the M3U/XMLTV generator (with OpenWebif responses faked), the HTTP se
 
 ## Continuous integration and releases
 
-`.github/workflows/build.yml` builds the IPK on every push to `main`, every pull request and every `v*` tag:
+`.github/workflows/build.yml` builds the IPK on every push to `main`, every pull request and every `v*` (or `V*`) tag:
 
 - **Pushes and PRs** produce a development build versioned `<control version>+git<run>.<sha>`, e.g. `1.1.0+git12.abc1234`. Download it from the run's **Artifacts** section on the Actions tab.
 - **Tags** (`v1.2.0`) build using the tag's version and publish a GitHub Release with generated notes. The release carries two copies of the IPK: the versioned file and `enigma2-plugin-extensions-bouquettom3u.ipk`, a copy with a fixed name that the `releases/latest/download` link above uses.
@@ -166,7 +168,7 @@ The workflow warns if the tag and `CONTROL/control` disagree. The tag version wi
 wget -O /tmp/bouquettom3u.ipk https://github.com/stumarti/Enigma2-Bouquet-to-M3U/releases/download/v1.2.0-rc1/enigma2-plugin-extensions-bouquettom3u.ipk && opkg install /tmp/bouquettom3u.ipk && init 4 && sleep 3 && init 3
 ```
 
-Tags must start with a lowercase `v`.
+Tags must start with `v` or `V`, e.g. `v1.3.0`.
 
 ## For feed and image maintainers
 

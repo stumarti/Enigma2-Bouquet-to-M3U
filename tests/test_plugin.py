@@ -1,6 +1,7 @@
 import os
 import shutil
 import tempfile
+import time
 import unittest
 from unittest import mock
 
@@ -191,6 +192,84 @@ class SetupScreenTest(PluginTestCase):
         self.screen.cancel()
         self.assertEqual(cfg.lan_only.value, before)
         self.assertEqual(self.screen.closed_with, (False,))
+
+
+class LastUpdateTest(PluginTestCase):
+
+    def setUp(self):
+        super().setUp()
+        self.out = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.out)
+        self.bouquets = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.bouquets)
+        with open(os.path.join(self.bouquets, "userbouquet.a.tv"), "w") as f:
+            f.write("#NAME Favourites\n")
+        cfg.bouquet.value = "userbouquet.a.tv"
+        for name, value in (("OUTPUT_DIR", self.out),
+                            ("BOUQUETS_DIR", self.bouquets),
+                            ("_last_refresh", None),
+                            ("_last_failure", None)):
+            patcher = mock.patch.object(plugin, name, value)
+            patcher.start()
+            self.addCleanup(patcher.stop)
+
+    def refresh(self, **kwargs):
+        with mock.patch.object(plugin.generator, "refresh_all", **kwargs):
+            return plugin._do_refresh()
+
+    def test_never(self):
+        self.assertEqual(plugin._last_update_text(), "Last update: never")
+
+    def test_after_restart_uses_playlist_time(self):
+        m3u = os.path.join(self.out, "channels.m3u")
+        open(m3u, "w").close()
+        os.utime(m3u, (1700000000, 1700000000))
+        self.assertEqual(plugin._last_update_text(),
+                         "Last update: " + plugin._fmt_time(1700000000))
+
+    def test_after_successful_refresh(self):
+        with mock.patch.object(plugin.time, "time", return_value=1700000000):
+            self.refresh(return_value={"channels": 120, "events": 8431})
+        self.assertEqual(
+            plugin._last_update_text(),
+            "Last update: %s (120 channels, 8431 events)"
+            % plugin._fmt_time(1700000000))
+
+    def test_failure_is_reported_alongside_last_success(self):
+        with mock.patch.object(plugin.time, "time", return_value=1700000000):
+            self.refresh(return_value={"channels": 120, "events": 8431})
+        with mock.patch.object(plugin.time, "time", return_value=1700003600):
+            self.refresh(side_effect=OSError("OpenWebif down"))
+        lines = plugin._last_update_text().splitlines()
+        self.assertEqual(lines[0], "Last update: %s (120 channels, 8431 events)"
+                         % plugin._fmt_time(1700000000))
+        self.assertEqual(lines[1], "Last attempt failed: %s (see enigma2 log)"
+                         % plugin._fmt_time(1700003600))
+
+    def test_missing_bouquet_counts_as_failure(self):
+        cfg.bouquet.value = "userbouquet.gone.tv"
+        self.refresh(return_value={"channels": 1, "events": 1})
+        self.assertIn("Last attempt failed", plugin._last_update_text())
+
+    def test_success_clears_failure(self):
+        self.refresh(side_effect=OSError("OpenWebif down"))
+        self.refresh(return_value={"channels": 1, "events": 2})
+        self.assertNotIn("failed", plugin._last_update_text())
+
+    def test_shown_on_setup_screen_and_urls_popup(self):
+        with mock.patch.object(plugin, "_file_server",
+                               FakeServer(cfg.port.value)):
+            session = FakeSession()
+            screen = plugin.BouquetToM3USetup(session)
+            self.assertEqual(screen["status"].text.splitlines()[-1],
+                             "Last update: never")
+            screen.show_urls()
+            self.assertTrue(session.opened[-1][1][0].endswith(
+                "Last update: never"))
+
+    def test_time_format(self):
+        ts = time.mktime((2026, 11, 4, 14, 32, 0, 0, 0, -1))
+        self.assertEqual(plugin._fmt_time(ts), "2026-11-04 14:32")
 
 
 class ScheduleTest(PluginTestCase):
